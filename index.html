@@ -2,400 +2,358 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 이미지 배치 생성기</title>
-    <!-- ZIP 파일 생성을 위한 라이브러리 -->
+    <title>AI 이미지 일괄 변환기</title>
+    <!-- ZIP 생성 및 다운로드용 라이브러리 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #121212; color: #e0e0e0; margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: 0 auto; }
-        h1 { text-align: center; color: #bb86fc; }
-        
-        /* 섹션 박스 스타일 */
-        .section { background: #1e1e1e; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        h2 { border-bottom: 1px solid #333; padding-bottom: 10px; margin-top: 0; font-size: 1.2rem; }
 
-        /* 입력 폼 스타일 */
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input, select, textarea { width: 100%; padding: 10px; margin-bottom: 10px; background: #2c2c2c; border: 1px solid #444; color: white; border-radius: 5px; box-sizing: border-box; }
+    <style>
+        body { background-color: #121212; color: #eee; font-family: sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .box { background: #1e1e1e; padding: 15px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #333; }
+        h2 { border-bottom: 2px solid #7c4dff; padding-bottom: 5px; margin-top: 0; color: #b388ff; }
         
-        /* 버튼 스타일 */
-        button { cursor: pointer; padding: 10px 20px; border: none; border-radius: 5px; font-weight: bold; transition: 0.2s; }
-        .btn-primary { background-color: #bb86fc; color: #000; }
-        .btn-primary:hover { background-color: #9955e8; }
-        .btn-danger { background-color: #cf6679; color: #000; }
-        .btn-success { background-color: #03dac6; color: #000; }
-        .btn-small { padding: 5px 10px; font-size: 0.8rem; margin-left: 5px; }
+        /* 입력창 디자인 */
+        input, select, button { padding: 10px; margin: 5px 0; border-radius: 4px; border: 1px solid #555; background: #333; color: white; width: 100%; box-sizing: border-box; }
+        button { cursor: pointer; font-weight: bold; border: none; width: auto; min-width: 100px; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* 버튼 색상 */
+        .btn-blue { background: #3d5afe; } 
+        .btn-red { background: #f44336; }
+        .btn-green { background: #00e676; color: black; }
+        .btn-icon { width: 30px; min-width: 30px; padding: 5px; background: #d32f2f; }
 
         /* 프리셋 리스트 */
-        .preset-list { max-height: 300px; overflow-y: auto; }
-        .preset-item { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-        .preset-item input { margin-bottom: 0; }
+        .preset-row { display: flex; gap: 5px; align-items: center; margin-bottom: 5px; background: #252525; padding: 5px; border-radius: 4px; }
+        .tag-input { flex: 2; }
 
-        /* 결과 그리드 */
-        .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
-        .card { background: #2c2c2c; border-radius: 8px; overflow: hidden; position: relative; }
-        .card img { width: 100%; height: 200px; object-fit: cover; display: block; }
-        .card-info { padding: 10px; }
-        .card-title { font-weight: bold; font-size: 0.9rem; margin-bottom: 5px; }
-        .card-actions { display: flex; justify-content: space-between; margin-top: 5px; }
-        
-        /* 상태 표시줄 */
-        .status-bar { position: fixed; bottom: 0; left: 0; right: 0; background: #333; padding: 10px; text-align: center; border-top: 2px solid #bb86fc; display: none; }
-        .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 10px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+        /* 결과물 그리드 */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .card { background: #2c2c2c; padding: 10px; border-radius: 8px; }
+        .card img { width: 100%; height: 200px; object-fit: cover; display: block; border-radius: 4px; margin-bottom: 5px; }
+        .log { margin-top: 10px; color: #00e676; font-size: 0.9rem; min-height: 20px; }
+
+        /* 스위치 등 */
+        .checkbox-row { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; color: #aaa; margin-top: 5px;}
+        input[type="checkbox"] { width: auto; }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <h1>AI 표정/자세 변환기</h1>
+    <h1>AI 표정/자세 변경 툴</h1>
 
-    <!-- 1. 설정 및 이미지 업로드 -->
-    <div class="section">
-        <h2>1. 설정 및 원본 이미지</h2>
-        <div style="display: flex; gap: 20px; flex-wrap: wrap;">
-            <div style="flex: 1;">
-                <label>사용할 API 선택</label>
-                <select id="apiSelect" onchange="saveSettings()">
-                    <option value="test">테스트 모드 (가짜 생성 - API 없이 체험)</option>
-                    <option value="novelai">Novel AI</option>
-                    <option value="nanobanana">NanoBanana (기타 API)</option>
-                </select>
-                <label>API Key (저장됨)</label>
-                <input type="password" id="apiKey" placeholder="sk-..." onchange="saveSettings()">
-            </div>
-            <div style="flex: 1;">
-                <label>원본 이미지 업로드</label>
-                <input type="file" id="imageInput" accept="image/*" onchange="handleImageUpload()">
-                <div id="imagePreview" style="font-size: 0.8rem; color: #888;">이미지가 선택되지 않았습니다.</div>
-            </div>
+    <!-- 1. 설정 -->
+    <div class="box">
+        <h2>1. 설정 및 원본</h2>
+        
+        <label>사용할 API</label>
+        <select id="apiSelect">
+            <option value="novelai">Novel AI (이미지 생성)</option>
+            <option value="nanobanana">NanoBanana (프롬프트 템플릿 테스트)</option>
+        </select>
+
+        <label>API Key (브라우저에 자동 저장됨)</label>
+        <input type="password" id="apiKey" placeholder="API Key 입력" onchange="saveData()">
+
+        <div class="checkbox-row">
+            <input type="checkbox" id="proxyMode" checked> 
+            <label for="proxyMode">웹 호환 모드 (깃허브 등에서 API 오류날 때 체크 - 프록시 사용)</label>
+        </div>
+
+        <label>공통/기본 프롬프트 (메타데이터)</label>
+        <input type="text" id="basePrompt" placeholder="예: masterpiece, best quality, 1girl..." onchange="saveData()">
+
+        <label>원본 이미지 선택</label>
+        <input type="file" id="fileInput" accept="image/*" onchange="loadFile()">
+        <img id="preview" style="max-height: 100px; margin-top: 10px; display: none;">
+    </div>
+
+    <!-- 2. 프리셋 -->
+    <div class="box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <h2>2. 표정 프리셋 (<span id="count">0</span>/100)</h2>
+            <button class="btn-green" onclick="addPreset()">+ 추가</button>
+        </div>
+        <div id="presetContainer" style="max-height: 300px; overflow-y: auto;">
+            <!-- 프리셋들이 여기 들어감 -->
         </div>
     </div>
 
-    <!-- 2. 프리셋 관리 -->
-    <div class="section">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <h2>2. 프리셋 관리 (자동 저장)</h2>
-            <button class="btn-success btn-small" onclick="addPreset()">+ 프리셋 추가</button>
-        </div>
-        <div class="preset-list" id="presetListContainer">
-            <!-- 프리셋들이 여기에 생성됩니다 -->
-        </div>
+    <!-- 3. 실행 -->
+    <div class="box" style="text-align: center;">
+        <button id="startBtn" class="btn-blue" onclick="startRun()">일괄 생성 시작 (12초 간격)</button>
+        <button id="stopBtn" class="btn-red" onclick="stopRun()" disabled>중단</button>
+        <br>
+        <button class="btn-green" style="margin-top: 15px;" onclick="dlZip()">전체 ZIP 다운로드</button>
+        <div id="log" class="log">대기 중...</div>
     </div>
 
-    <!-- 3. 컨트롤 패널 -->
-    <div class="section" style="text-align: center;">
-        <button id="startBtn" class="btn-primary" onclick="startBatchGeneration()">일괄 생성 시작 (12초 딜레이)</button>
-        <button id="stopBtn" class="btn-danger" onclick="stopGeneration()" disabled>중단</button>
-        <button class="btn-success" onclick="downloadAllZip()">전체 ZIP 다운로드</button>
-        <p id="progressText" style="margin-top: 10px; color: #888;">대기 중...</p>
-    </div>
-
-    <!-- 4. 결과물 -->
-    <div class="gallery" id="resultGallery">
-        <!-- 결과 이미지가 여기에 생성됩니다 -->
-    </div>
-</div>
-
-<div class="status-bar" id="statusBar">
-    <span class="spinner"></span> <span id="statusText">처리 중...</span>
-</div>
+    <!-- 4. 결과 -->
+    <div class="grid" id="resultGrid"></div>
 
 <script>
-    // --- 전역 변수 ---
+    // == 전역 변수 ==
     let presets = [];
-    let originalImageBase64 = null;
-    let isProcessing = false;
-    let stopRequested = false;
-    let generatedImages = {}; // { presetId: base64Data }
+    let imgBase64 = null;
+    let isRun = false;
+    let stopFlag = false;
+    let results = {}; // { id: base64Data }
 
-    // --- 초기화 ---
-    window.onload = () => {
-        loadSettings();
-        renderPresets();
-    };
-
-    // --- 로컬 스토리지 관리 ---
-    function loadSettings() {
-        const savedKey = localStorage.getItem('apiKey');
-        const savedApi = localStorage.getItem('apiSelect');
-        const savedPresets = localStorage.getItem('presets');
-
-        if (savedKey) document.getElementById('apiKey').value = savedKey;
-        if (savedApi) document.getElementById('apiSelect').value = savedApi;
-        
-        if (savedPresets) {
-            presets = JSON.parse(savedPresets);
+    // == 시작 시 로드 ==
+    window.onload = function() {
+        if(localStorage.getItem("apiKey")) document.getElementById("apiKey").value = localStorage.getItem("apiKey");
+        if(localStorage.getItem("basePrompt")) document.getElementById("basePrompt").value = localStorage.getItem("basePrompt");
+        if(localStorage.getItem("presets")) {
+            presets = JSON.parse(localStorage.getItem("presets"));
         } else {
             // 기본 예시
             presets = [
-                { id: Date.now(), name: "기쁨", tag: "happy, light smile, bright eyes" },
-                { id: Date.now() + 1, name: "슬픔", tag: "sad, crying, tears" }
+                { id: 1, name: "기쁨", tag: "smile, happy" },
+                { id: 2, name: "슬픔", tag: "sad, crying" }
             ];
         }
+        renderPresets();
+    };
+
+    function saveData() {
+        localStorage.setItem("apiKey", document.getElementById("apiKey").value);
+        localStorage.setItem("basePrompt", document.getElementById("basePrompt").value);
+        localStorage.setItem("presets", JSON.stringify(presets));
     }
 
-    function saveSettings() {
-        localStorage.setItem('apiKey', document.getElementById('apiKey').value);
-        localStorage.setItem('apiSelect', document.getElementById('apiSelect').value);
-        localStorage.setItem('presets', JSON.stringify(presets));
+    // == 이미지 읽기 ==
+    function loadFile() {
+        const f = document.getElementById("fileInput").files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = e => {
+            imgBase64 = e.target.result;
+            document.getElementById("preview").src = imgBase64;
+            document.getElementById("preview").style.display = 'block';
+        };
+        r.readAsDataURL(f);
     }
 
-    // --- 이미지 처리 ---
-    function handleImageUpload() {
-        const file = document.getElementById('imageInput').files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                originalImageBase64 = e.target.result;
-                document.getElementById('imagePreview').innerText = `선택됨: ${file.name}`;
-            };
-            reader.readAsDataURL(file);
-        }
-    }
-
-    // --- 프리셋 UI 관리 ---
+    // == 프리셋 UI ==
     function renderPresets() {
-        const container = document.getElementById('presetListContainer');
-        container.innerHTML = '';
-        
-        presets.forEach((preset, index) => {
-            const div = document.createElement('div');
-            div.className = 'preset-item';
-            div.innerHTML = `
-                <span style="width:30px;">#${index+1}</span>
-                <input type="text" placeholder="이름 (예: 기쁨)" value="${preset.name}" 
-                    oninput="updatePreset(${preset.id}, 'name', this.value)" style="flex:1;">
-                <input type="text" placeholder="태그 (예: smile, happy)" value="${preset.tag}" 
-                    oninput="updatePreset(${preset.id}, 'tag', this.value)" style="flex:2;">
-                <button class="btn-danger btn-small" onclick="removePreset(${preset.id})">X</button>
+        const el = document.getElementById("presetContainer");
+        el.innerHTML = "";
+        document.getElementById("count").innerText = presets.length;
+
+        presets.forEach((p, i) => {
+            const row = document.createElement("div");
+            row.className = "preset-row";
+            row.innerHTML = `
+                <div style="width:30px; text-align:center; color:#777;">${i+1}</div>
+                <input type="text" value="${p.name}" placeholder="이름 (예: 기쁨)" oninput="updateP(${p.id}, 'name', this.value)">
+                <input type="text" class="tag-input" value="${p.tag}" placeholder="태그 (예: smile)" oninput="updateP(${p.id}, 'tag', this.value)">
+                <button class="btn-icon" onclick="delP(${p.id})">X</button>
             `;
-            container.appendChild(div);
+            el.appendChild(row);
         });
     }
 
     function addPreset() {
-        if (presets.length >= 100) return alert("최대 100개까지만 가능합니다.");
+        if(presets.length >= 100) return alert("최대 100개입니다.");
         presets.push({ id: Date.now(), name: "", tag: "" });
         renderPresets();
-        saveSettings();
+        saveData();
     }
 
-    function removePreset(id) {
+    function delP(id) {
         presets = presets.filter(p => p.id !== id);
         renderPresets();
-        saveSettings();
+        saveData();
     }
 
-    function updatePreset(id, field, value) {
-        const preset = presets.find(p => p.id === id);
-        if (preset) {
-            preset[field] = value;
-            saveSettings();
-        }
+    function updateP(id, key, val) {
+        const t = presets.find(p => p.id === id);
+        if(t) t[key] = val;
+        saveData();
     }
 
-    // --- 핵심 로직: 생성 파이프라인 ---
-    const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+    // == 핵심 기능: 실행 ==
+    async function startRun() {
+        if(!imgBase64) return alert("이미지가 없습니다.");
+        const key = document.getElementById("apiKey").value;
+        if(!key) return alert("API Key가 없습니다.");
 
-    async function startBatchGeneration() {
-        if (!originalImageBase64) return alert("원본 이미지를 먼저 업로드해주세요.");
-        if (isProcessing) return;
+        isRun = true;
+        stopFlag = false;
+        document.getElementById("startBtn").disabled = true;
+        document.getElementById("stopBtn").disabled = false;
+        document.getElementById("resultGrid").innerHTML = ""; 
+        results = {};
 
-        isProcessing = true;
-        stopRequested = false;
-        updateButtons();
+        const mode = document.getElementById("apiSelect").value;
         
-        const apiType = document.getElementById('apiSelect').value;
-        const apiKey = document.getElementById('apiKey').value;
+        for(let i=0; i<presets.length; i++) {
+            if(stopFlag) break;
 
-        document.getElementById('resultGallery').innerHTML = ''; // 갤러리 초기화
-
-        for (let i = 0; i < presets.length; i++) {
-            if (stopRequested) {
-                logStatus("사용자에 의해 중단되었습니다.");
-                break;
-            }
-
-            const preset = presets[i];
-            logStatus(`생성 중: ${preset.name} (${i+1}/${presets.length})`);
-            showStatusBar(true, `${preset.name} 생성 중...`);
-
+            const p = presets[i];
+            log(`[${i+1}/${presets.length}] '${p.name}' 생성 요청 중...`);
+            
             try {
-                // API 호출
-                const resultImage = await callApi(apiType, apiKey, originalImageBase64, preset.tag);
+                // 생성 요청
+                const finalImg = await callApi(mode, key, p);
                 
-                // 결과 저장 및 화면 표시
-                generatedImages[preset.id] = resultImage;
-                addCardToGallery(preset, resultImage);
-                
-            } catch (error) {
-                console.error(error);
-                logStatus(`에러 발생 (${preset.name}): ${error.message}`);
+                // 성공 시
+                if(finalImg) {
+                    results[p.id] = finalImg;
+                    addCard(p, finalImg);
+                }
+            } catch(e) {
+                console.error(e);
+                log(`오류 (${p.name}): ${e.message}`);
+                // 오류 나도 계속 할지 여부는 선택이지만 여기선 로그 찍고 진행
             }
 
-            // 마지막이 아니고 중단되지 않았으면 12초 대기
-            if (i < presets.length - 1 && !stopRequested) {
-                let timeLeft = 12;
-                while (timeLeft > 0 && !stopRequested) {
-                    logStatus(`다음 생성 대기 중... ${timeLeft}초`);
-                    await wait(1000);
-                    timeLeft--;
+            // 딜레이 12초 (마지막 아닐 때만)
+            if(i < presets.length - 1 && !stopFlag) {
+                for(let t=12; t>0; t--) {
+                    if(stopFlag) break;
+                    log(`대기 중... ${t}초 (다음: ${presets[i+1].name})`);
+                    await new Promise(r => setTimeout(r, 1000));
                 }
             }
         }
 
-        showStatusBar(false);
-        isProcessing = false;
-        updateButtons();
-        if(!stopRequested) logStatus("모든 작업 완료!");
+        isRun = false;
+        document.getElementById("startBtn").disabled = false;
+        document.getElementById("stopBtn").disabled = true;
+        log(stopFlag ? "중단됨" : "완료되었습니다.");
     }
 
-    function stopGeneration() {
-        if (isProcessing) {
-            stopRequested = true;
-            logStatus("중단 요청 중...");
-        }
+    function stopRun() {
+        if(isRun) stopFlag = true;
     }
 
-    // --- API 통신 로직 ---
-    async function callApi(type, key, imageBase64, tag) {
-        // Base64 헤더 제거 (data:image/png;base64,...)
-        const cleanBase64 = imageBase64.split(',')[1]; 
+    // == API 호출부 (중요) ==
+    async function callApi(mode, key, preset) {
+        const useProxy = document.getElementById("proxyMode").checked;
+        const base = document.getElementById("basePrompt").value; // 기본 태그
+        
+        // NovelAI
+        if(mode === "novelai") {
+            const rawBody = imgBase64.split(",")[1]; // 헤더 제거
+            const prompt = `${base}, ${preset.tag}`; 
 
-        if (type === 'test') {
-            // 테스트 모드: 그냥 원본 이미지를 흑백으로 바꾸거나 딜레이만 줌
-            await wait(2000); // 가짜 로딩
-            return imageBase64; // 원본 리턴
-        }
+            const bodyData = {
+                input: prompt,
+                model: "nai-diffusion-3",
+                action: "img2img",
+                parameters: {
+                    image: rawBody,
+                    strength: 0.7,
+                    noise: 0.1,
+                    scale: 6, // config
+                    sampler: "k_euler_ancestral",
+                    steps: 28,
+                    width: 832, height: 1216,
+                    sm: true, sm_dyn: true
+                }
+            };
 
-        if (type === 'nanobanana') {
-            // NanoBanana 로직: 프롬프트 영어 템플릿 적용
-            const prompt = `Change to ${tag} while maintaining the original style and composition.`;
-            
-            // 실제 API 주소와 형식은 해당 서비스 문서를 참고하여 수정 필요
-            // 여기서는 가상의 Fetch 코드입니다.
-            /*
-            const response = await fetch("https://api.nanobanana.com/generate", {
+            // 여기가 핵심: 일반 url과 우회 url 스위칭
+            let url = "https://api.novelai.net/ai/generate-image";
+            if(useProxy) {
+                // corsproxy.io 등 공개 프록시를 통해 요청을 우회시킴
+                url = "https://corsproxy.io/?" + encodeURIComponent(url);
+            }
+
+            const res = await fetch(url, {
                 method: "POST",
-                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ init_image: cleanBase64, prompt: prompt })
+                headers: {
+                    "Authorization": "Bearer " + key,
+                    "Content-Type": "application/json",
+                    // 우회 모드 시 일부 헤더 필요 없음
+                },
+                body: JSON.stringify(bodyData)
             });
-            const data = await response.json();
-            return "data:image/png;base64," + data.image; 
-            */
-            alert("API 주소를 코드에 입력해야 작동합니다. 현재는 테스트 모드를 이용해주세요.");
-            throw new Error("API 연결 설정 필요");
-        }
 
-        if (type === 'novelai') {
-            // Novel AI 로직: 태그 덧붙이기
-            // 주의: 브라우저에서 NovelAI 직접 호출 시 CORS 에러가 발생할 수 있습니다.
-            const finalPrompt = `original metadata tags, ${tag}`;
-            
-            /*
-            const response = await fetch("https://api.novelai.net/ai/generate-image", {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${key}`, "Content-Type": "application/json" },
-                body: JSON.stringify({ 
-                    input: finalPrompt, 
-                    image: cleanBase64, 
-                    action: "img2img", 
-                    parameters: { width: 512, height: 768 } // 예시
-                })
-            });
-            // ... 처리 로직
-            */
-            alert("NovelAI는 CORS 정책으로 인해 별도의 프록시 서버가 필요할 수 있습니다.");
-            throw new Error("CORS 또는 API 설정 필요");
+            if(!res.ok) throw new Error("API 오류: " + res.status);
+
+            // NAI는 ZIP 바이너리를 줌 -> JSZip으로 풀기
+            const blob = await res.blob();
+            const z = await JSZip.loadAsync(blob);
+            const fname = Object.keys(z.files)[0]; // 첫 파일
+            const b64 = await z.files[fname].async("base64");
+            return "data:image/png;base64," + b64;
+        }
+        
+        // Nano Banana (가상) - 영어 문장 만들기
+        else if (mode === "nanobanana") {
+            const prompt = `(English) Change original style to ${preset.tag} keep composition.`;
+            // 예시 로직이므로 실제 API가 있으면 여기서 fetch
+            // 가짜로 잠시 대기했다가 원본 돌려줌
+            await new Promise(r => setTimeout(r, 1000));
+            // 만약 실제라면: return base64Result;
+            return imgBase64; 
         }
     }
 
-    async function regenerate(presetId) {
-        if (isProcessing) return alert("일괄 작업 중에는 개별 생성이 불가능합니다.");
-        const preset = presets.find(p => p.id === presetId);
-        const apiKey = document.getElementById('apiKey').value;
-        const apiType = document.getElementById('apiSelect').value;
-
-        if(!preset) return;
+    async function reGen(id) {
+        if(isRun) return alert("일괄 생성 중엔 불가");
+        const p = presets.find(x => x.id == id);
+        const key = document.getElementById("apiKey").value;
+        const mode = document.getElementById("apiSelect").value;
         
         try {
-            showStatusBar(true, `${preset.name} 재생성 중...`);
-            const newImage = await callApi(apiType, apiKey, originalImageBase64, preset.tag);
-            
-            // 이미지 업데이트
-            generatedImages[presetId] = newImage;
-            document.getElementById(`img-${presetId}`).src = newImage;
+            log(`${p.name} 재생성 중...`);
+            const newImg = await callApi(mode, key, p);
+            if(newImg) {
+                results[id] = newImg;
+                document.querySelector(`#card-${id} img`).src = newImg;
+            }
+            log("재생성 완료");
         } catch(e) {
-            alert("재생성 실패: " + e.message);
-        } finally {
-            showStatusBar(false);
+            alert("실패: " + e.message);
         }
     }
 
-    // --- UI 헬퍼 ---
-    function addCardToGallery(preset, imageSrc) {
-        const gallery = document.getElementById('resultGallery');
-        const card = document.createElement('div');
-        card.className = 'card';
-        card.innerHTML = `
-            <img src="${imageSrc}" id="img-${preset.id}">
-            <div class="card-info">
-                <div class="card-title">${preset.name}</div>
-                <div style="font-size: 0.8rem; color:#aaa; margin-bottom:5px;">${preset.tag}</div>
-                <div class="card-actions">
-                    <button class="btn-primary btn-small" onclick="regenerate(${preset.id})">재생성</button>
-                    <button class="btn-success btn-small" onclick="downloadOne(${preset.id}, '${preset.name}')">다운</button>
-                </div>
+    // == UI 헬퍼 ==
+    function log(msg) { document.getElementById("log").innerText = msg; }
+
+    function addCard(p, src) {
+        const grid = document.getElementById("resultGrid");
+        const exist = document.getElementById(`card-${p.id}`);
+        if(exist) {
+            exist.querySelector("img").src = src;
+            return;
+        }
+
+        const div = document.createElement("div");
+        div.className = "card";
+        div.id = `card-${p.id}`;
+        div.innerHTML = `
+            <img src="${src}">
+            <strong>${p.name}</strong> <span style="font-size:0.8rem; color:#aaa;">${p.tag}</span><br>
+            <div style="margin-top:5px; display:flex; gap:5px;">
+                <button class="btn-green" onclick="saveOne('${src}', '${p.name}')" style="flex:1;">저장</button>
+                <button class="btn-blue" onclick="reGen(${p.id})" style="flex:1;">↻</button>
             </div>
         `;
-        gallery.appendChild(card);
+        grid.appendChild(div);
     }
 
-    function logStatus(text) {
-        document.getElementById('progressText').innerText = text;
+    // == 다운로드 ==
+    function saveOne(data, name) {
+        saveAs(data, name + ".png");
     }
 
-    function updateButtons() {
-        document.getElementById('startBtn').disabled = isProcessing;
-        document.getElementById('stopBtn').disabled = !isProcessing;
-    }
-
-    function showStatusBar(show, text="") {
-        const bar = document.getElementById('statusBar');
-        bar.style.display = show ? 'block' : 'none';
-        document.getElementById('statusText').innerText = text;
-    }
-
-    // --- 다운로드 기능 ---
-    function downloadOne(id, name) {
-        const data = generatedImages[id];
-        if(data) saveAs(data, `${name}.png`);
-    }
-
-    function downloadAllZip() {
-        const zip = new JSZip();
-        const folder = zip.folder("images");
-        let count = 0;
-
-        Object.keys(generatedImages).forEach(id => {
-            const preset = presets.find(p => p.id == id);
-            const data = generatedImages[id];
-            if (preset && data) {
-                // "data:image/png;base64," 제거
-                const base64Data = data.split(',')[1];
-                folder.file(`${preset.name}.png`, base64Data, {base64: true});
-                count++;
+    function dlZip() {
+        const z = new JSZip();
+        let cnt = 0;
+        Object.keys(results).forEach(id => {
+            const p = presets.find(x => x.id == id);
+            if(p && results[id]) {
+                const pure = results[id].split(",")[1];
+                z.file(p.name + ".png", pure, {base64:true});
+                cnt++;
             }
         });
-
-        if (count === 0) return alert("다운로드할 이미지가 없습니다.");
-
-        zip.generateAsync({type:"blob"}).then(function(content) {
-            saveAs(content, "presets_images.zip");
-        });
+        if(cnt===0) return alert("다운로드할 이미지가 없어요");
+        z.generateAsync({type:"blob"}).then(c => saveAs(c, "images.zip"));
     }
 </script>
 
